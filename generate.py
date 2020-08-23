@@ -30,7 +30,7 @@ def ask_bool(q: str, default: bool):
         elif i == "":
             return default
 
-def generate_all_scales(input_file: str, output_folder: str, confirm_overwrite: bool = False, ext: str = "jpg"):
+def generate_all_scales(input_file: str, output_folder: str, confirm_overwrite: bool = False, ext: str = "jpg", quality: int = 50):
     f_name = os.path.basename(input_file)
     template_name = names.get(f_name, None)
     if template_name is None:
@@ -43,17 +43,17 @@ def generate_all_scales(input_file: str, output_folder: str, confirm_overwrite: 
             im = Image.open(input_file)
             im = im.resize((int(im.size[0]*scale), int(im.size[1]*scale)), RESAMPLING_METHOD)
             save_path = os.path.join(output_folder, template_name.format(scale=scale_name, ext=ext))
-            if (not confirm_overwrite) or ask_bool(f"Overwrite {os.path.relpath(save_path, os.getcwd())}?", False):
-                im.save(save_path)
+            if (not confirm_overwrite) or not os.path.exists(save_path) or ask_bool(f"Overwrite {os.path.relpath(save_path, os.getcwd())}?", False):
+                im.save(save_path, quality=quality, optimise=(quality < 95))
     else:
         for size in SIZES:
             im = Image.open(input_file)
             im = im.resize((size, size), RESAMPLING_METHOD)
             save_path = os.path.join(output_folder, template_name.format(targetsize=size, ext=ext))
-            if (not confirm_overwrite) or ask_bool(f"Overwrite {os.path.relpath(save_path, os.getcwd())}?", False):
-                im.save(save_path)
+            if (not confirm_overwrite) or not os.path.exists(save_path) or ask_bool(f"Overwrite {os.path.relpath(save_path, os.getcwd())}?", False):
+                im.save(save_path, quality=quality, optimise=(quality < 95))
     
-def generate_all(folder: str, output_folder: str, confirm_overwrite: bool = False, ext: str = "jpg"):
+def generate_all(folder: str, output_folder: str, confirm_overwrite: bool = False, ext: str = "jpg", quality: int = 50):
     for file in os.listdir(folder):
         generate_all_scales(os.path.join(folder, file), output_folder, confirm_overwrite, ext)
     
@@ -73,10 +73,11 @@ def main():
     parser.add_argument("-o", "--output", type=str, help="Path to the output folder", default="output")
     parser.add_argument("-f", "--force", action="store_true", help="If present, files in the output folder will be overwritten with no confirmation required.")
     parser.add_argument("-e", "--ext", type=str, help="File type extension for the output images (without the '.'). Default is jpg to reduce file size.", default="jpg")
+    parser.add_argument("-q", "--quality", type=int, help="Output image quality. PIL default is 75, the default for this application is 50.", default=50)
     
     args = parser.parse_args(argv[1:])
     
-    generate_all(args.input, args.output, not args.force, args.ext)
+    generate_all(args.input, args.output, not args.force, args.ext, args.quality)
     
 
 if __name__ == "__main__":
