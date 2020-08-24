@@ -12,6 +12,7 @@ resampling_methods = {
     "bilinear": Image.BILINEAR,
     "hamming": Image.HAMMING,
     "bicubic": Image.BICUBIC,
+    "antialias": Image.ANTIALIAS,
 }
 
 class Logger:
@@ -78,7 +79,7 @@ class ScaledImage:
         dirpath = os.path.dirname(filename)
         if not os.path.exists(dirpath):
             os.makedirs(dirpath)
-        im.save(filename, self.image_type, quality=args.quality, optimise=not args.unoptimised)
+        im.save(filename, self.image_type, quality=args.quality, optimise=not args.unoptimised,)
 
     def resize_and_save(self, scale):
         im = self.source.resize((int(self.source.size[0]*scale), int(self.source.size[1]*scale)), self.resampling_method)
@@ -116,8 +117,14 @@ def main():
     parser.add_argument('-m', '--resampling-method', type=str, default='lanczos',
                         help="Resampling method to use for downscaling the image. "
                              "Options are: %s" % ', '.join(("'%s'" % k for k in resampling_methods)))
+    parser.add_argument('-s', '--exclude-scales', nargs="*", help="Scales to be excluded.")
 
     args = parser.parse_args(argv[1:])
+
+    if args.exclude_scales is not None:
+        for scale in args.exclude_scales:
+            ScaledImage.scales = {k: v for k, v in ScaledImage.scales.items() if v != scale}
+            SizedImage.scales = [k for k in SizedImage.scales if str(k) != scale]
 
     try:
         args.resampling_method = resampling_methods[args.resampling_method]
@@ -152,6 +159,8 @@ def main():
 
         images.append(klass(fname, args.output, names[name], args.ext, args.resampling_method))
 
+    Logger.info("Scaled images to be produced at: %s qualities" % ", ".join(ScaledImage.scales.values()))
+    Logger.info("Sized images to be produced at: %s qualities" % ", ".join([str(x) for x in SizedImage.scales]))
     Logger.info("Resizing %i images..." % len(images))
     for i in images:
         i.resize_all()
